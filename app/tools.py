@@ -1,4 +1,5 @@
-"""The four MCP tools: save_note, retrieve, list_notebooks, search_notes.
+"""The MCP tools: save_note, retrieve, list_notebooks, search_notes, and the pair
+get_notebook_contents / save_notebook_summary used by the summarize_notebook prompt.
 
 Every tool resolves `owner_id` from the verified access token (never from a parameter — a
 model could never be trusted to supply it), and goes through db/repository.py rather than
@@ -6,6 +7,7 @@ querying directly, so the owner filter from Q8 can't be forgotten per-tool.
 """
 
 import uuid
+from datetime import datetime, timezone
 from typing import TypedDict
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -49,6 +51,24 @@ class NoteHit(TypedDict):
     tags: list[str]
     source_app: str
     created_at: str
+
+
+class NoteFull(TypedDict):
+    """One entry in `get_notebook_contents`'s result — full content, not a snippet."""
+
+    id: str
+    title: str
+    summary: str
+    tags: list[str]
+    source_app: str
+    created_at: str
+
+
+class SaveSummaryResult(TypedDict):
+    """What `save_notebook_summary` returns."""
+
+    notebook_id: str
+    summary_generated_at: str
 
 
 def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -217,6 +237,84 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
                 }
                 for note in notes
             ]
+
+    @server.tool()
+    async def get_notebook_contents(notebook_id: str) -> list[NoteFull]:
+        """Fetch every Note in a Notebook in full — not truncated snippets.
+
+        For writing a Roll-up Summary: read the full content this returns, then call
+        `save_notebook_summary`. Not meant for casual browsing — use `retrieve` for that.
+
+        Args:
+            notebook_id (str): The Notebook to fetch.
+
+        Returns:
+            list[NoteFull]: Every Note, oldest first.
+
+        Raises:
+            ValueError: If `notebook_id` isn't a valid id, or isn't owned by the caller.
+        """
+        token = get_access_token()
+        owner_id = _require_subject(token)
+        parsed_id = _parse_uuid(notebook_id, "notebook_id")
+
+        async with session_scope(session_factory) as session:
+            notebook = await repository.get_notebook(session, owner_id, parsed_id)
+            if notebook is None:
+                raise ValueError(f"No Notebook found with id {notebook_id!r}.")
+
+            notes = await repository.list_notes(session, owner_id, parsed_id)
+            return [
+                {
+                    "id": str(note.id),
+                    "title": note.title,
+                    "summary": note.summary,
+                    "tags": note.tags,
+                    "source_app": note.source_app,
+                    "created_at": note.created_at.isoformat(),
+                }
+                for note in notes
+            ]
+
+    @server.tool()
+    async def save_notebook_summary(notebook_id: str, summary: str) -> SaveSummaryResult:
+        """Save a Roll-up Summary for a Notebook, synthesized across all its Notes.
+
+        Call `get_notebook_contents` first to read what you're summarizing.
+
+        Args:
+            notebook_id (str): The Notebook to save the summary to.
+            summary (str): The synthesized summary, markdown. Should read as one narrative
+                across sessions, not a concatenation of the individual Note summaries.
+
+        Returns:
+            SaveSummaryResult: `notebook_id` and `summary_generated_at` (ISO 8601).
+
+        Raises:
+            ValueError: If `notebook_id` isn't valid or owned, `summary` is blank, or the
+                Notebook has no Notes yet (nothing to summarize).
+        """
+        if not summary.strip():
+            raise ValueError("summary is blank.")
+
+        token = get_access_token()
+        owner_id = _require_subject(token)
+        parsed_id = _parse_uuid(notebook_id, "notebook_id")
+
+        async with session_scope(session_factory) as session:
+            notes = await repository.list_notes(session, owner_id, parsed_id)
+            if not notes:
+                notebook = await repository.get_notebook(session, owner_id, parsed_id)
+                if notebook is None:
+                    raise ValueError(f"No Notebook found with id {notebook_id!r}.")
+                raise ValueError(f"Notebook {notebook_id!r} has no Notes yet; nothing to summarize.")
+
+            generated_at = datetime.now(timezone.utc)
+            notebook = await repository.save_notebook_summary(session, owner_id, parsed_id, summary, generated_at)
+            if notebook is None:
+                raise ValueError(f"No Notebook found with id {notebook_id!r}.")
+
+            return {"notebook_id": str(parsed_id), "summary_generated_at": generated_at.isoformat()}
 
 
 def _require_subject(token: AccessToken) -> str:

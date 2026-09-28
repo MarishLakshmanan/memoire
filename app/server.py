@@ -1,4 +1,4 @@
-"""Builds the MCP server: Clerk auth plus the Notebook/Note tool surface."""
+"""Builds the MCP server: Clerk auth plus the Notebook/Note tools and prompts."""
 
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
@@ -7,11 +7,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.auth import ClerkTokenVerifier
 from app.config import Settings
+from app.prompts import register_prompts
 from app.tools import register_tools
 
 
 def build_server(settings: Settings, session_factory: async_sessionmaker[AsyncSession]) -> MCPServer:
-    """Build the MCP server with Clerk auth and the Notebook/Note tools.
+    """Build the MCP server with Clerk auth and the Notebook/Note tools and prompts.
 
     Args:
         settings (Settings): Configuration resolved from the environment.
@@ -40,5 +41,6 @@ def build_server(settings: Settings, session_factory: async_sessionmaker[AsyncSe
     )
 
     register_tools(server, session_factory)
+    register_prompts(server)
 
     return server
