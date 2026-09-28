@@ -36,10 +36,8 @@ negative cases (blank summary rejected, unowned/missing `notebook_id` rejected).
 
 ## Not yet done
 
-- Real Clerk + Claude Code end-to-end for these prompts and the new tools — same gap noted in
-  `.scratch/phase-2-tools/issues/01`, now covers six tools and four prompts instead of four
-  tools. This is the point to actually do that check, since prompts are the first thing meant
-  for direct human/slash-command use rather than being called by a model unprompted.
+- Real Clerk + Claude Code end-to-end for these prompts and the new tools — see
+  `.scratch/phase-3-prompts/issues/01`.
 - The "Notebook has notes but summary is 0 notes" negative case for `save_notebook_summary`
   wasn't exercised through the protocol (would need a Notebook with zero Notes, which isn't
   reachable through the public tool surface without a delete tool — deliberately absent,
