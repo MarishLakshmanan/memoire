@@ -1,4 +1,4 @@
-"""Environment configuration for the phase 0 auth spike."""
+"""Environment configuration for the application."""
 
 import os
 from dataclasses import dataclass
@@ -18,16 +18,18 @@ class Settings:
         resource_url (str): This server's RFC 8707 resource identifier, matched against token `aud`.
         is_production (bool): True when running in production, which turns audience checking on.
         clerk_public_key (str): PEM-encoded RSA public key used to verify token signatures.
+        database_url (str): `postgresql+asyncpg://` connection string.
     """
 
     clerk_issuer: str
     resource_url: str
     is_production: bool
     clerk_public_key: str
+    database_url: str
 
 
 def load_settings() -> Settings:
-    """Read and validate the spike's configuration from environment variables.
+    """Read and validate the application's configuration from environment variables.
 
     Returns:
         Settings: The validated configuration.
@@ -52,9 +54,14 @@ def load_settings() -> Settings:
     if not key_path.is_file():
         raise ValueError(f"Clerk public key not found at {key_path}. Download it from the Clerk dashboard.")
 
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/ai_notes)")
+
     return Settings(
         clerk_issuer=issuer.rstrip("/"),
         resource_url=resource_url,
         is_production=app_env == "production",
         clerk_public_key=key_path.read_text(),
+        database_url=database_url,
     )

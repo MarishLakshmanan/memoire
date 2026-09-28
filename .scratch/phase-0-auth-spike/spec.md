@@ -21,3 +21,11 @@ End-to-end auth with a real Clerk instance and a real MCP client. See issues 01 
 
 Claude Code connects to the server, completes the OAuth flow against Clerk, and calls `ping`
 successfully, with the returned `audience` inspected to confirm what Clerk stamps.
+
+## Update — code promoted to app/
+
+The `spike/` code (`config.py`, `auth.py`, `server.py`, `app.py`) is gone as of phase 2.
+`config.py` and `auth.py` moved into `app/` verbatim (well, `config.py` gained
+`DATABASE_URL`); `server.py` and `app.py` were rewritten to wire in the real Notebook/Note
+tools instead of the `ping` placeholder. The auth layer itself was never a spike after this
+phase's real Clerk test passed — the "throwaway" framing only ever applied to `ping`.
