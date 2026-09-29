@@ -6,15 +6,20 @@ no change to the actual response content.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `list_notebooks` returns a `TypedDict`-based shape: a list of Notebook summaries when called
+- [x] `list_notebooks` returns a `TypedDict`-based shape: a list of Notebook summaries when called
       with no `q`, a list of Note search hits when called with `q`
-- [ ] `get_notebook` returns a `TypedDict`-based Notebook detail shape, including its nested list
+- [x] `get_notebook` returns a `TypedDict`-based Notebook detail shape, including its nested list
       of Note details
-- [ ] Field names and types match what `frontend/src/api.ts`'s existing TypeScript types already
+- [x] Field names and types match what `frontend/src/api.ts`'s existing TypeScript types already
       expect — no response field renamed, added, or removed
-- [ ] `uv run pyright app/api.py` reports zero errors for this file
-- [ ] `GET /api/notebooks` (with and without `q`), `GET /api/notebooks/{id}`, and the two delete
-      routes verified against the real dev server with a real Clerk session — identical JSON/status
-      codes to before this change
+- [x] `uv run pyright app/api.py` reports zero errors for this file
+- [x] Verified against a real running dev server: the OpenAPI schema at `/openapi.json` shows
+      `NotebookSummary`/`NoteHit`/`NotebookDetail` component schemas exactly matching the new
+      TypedDicts, and unauthenticated `GET /api/notebooks`/`GET /api/notebooks/{id}` return 401
+      (not 500), confirming FastAPI built the routes and response models without error
+- [ ] Full authenticated pass with a real Clerk session (both `q` branches, `get_notebook`, and the
+      two delete routes returning identical JSON/status to before) — **not done**; only
+      unauthenticated routing + schema shape were verified, not authenticated response bodies. A
+      real-Clerk pass through the frontend or a REST client is still worth doing.

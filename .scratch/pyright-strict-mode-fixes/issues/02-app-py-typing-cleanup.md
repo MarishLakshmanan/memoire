@@ -7,12 +7,12 @@ change.
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `/health` returns a `TypedDict`-typed body (`status`, `resource`) instead of bare `dict`
-- [ ] `lifespan`'s return type is `AsyncGenerator[None]`, imported from `collections.abc`, instead
+- [x] `/health` returns a `TypedDict`-typed body (`status`, `resource`) instead of bare `dict`
+- [x] `lifespan`'s return type is `AsyncGenerator[None]`, imported from `collections.abc`, instead
       of the deprecated `AsyncIterator[None]`
-- [ ] `uv run pyright app/app.py` reports zero errors for this file
-- [ ] `GET /health` verified against the real dev server, returning identical JSON to before
-- [ ] Dev server starts and serves `/mcp` successfully, confirming `lifespan` still runs the MCP
+- [x] `uv run pyright app/app.py` reports zero errors for this file
+- [x] `GET /health` verified against the real dev server, returning identical JSON to before
+- [x] Dev server starts and serves `/mcp` successfully, confirming `lifespan` still runs the MCP
       session manager correctly

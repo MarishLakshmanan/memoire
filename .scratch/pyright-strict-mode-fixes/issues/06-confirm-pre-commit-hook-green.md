@@ -6,14 +6,14 @@ tickets 01–05 — passes strict-mode pyright with zero errors.
 
 **Blocked by:** 01, 02, 03, 04, 05
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `uv run pyright` (whole project, no path arguments) reports 0 errors, 0 warnings,
+- [x] `uv run pyright` (whole project, no path arguments) reports 0 errors, 0 warnings,
       0 informations
-- [ ] `uv run pre-commit run --all-files` passes every hook: ruff lint, ruff format, pyright,
+- [x] `uv run pre-commit run --all-files` passes every hook: ruff lint, ruff format, pyright,
       bandit, eslint, tsc, npm audit, and the hygiene hooks (trailing-whitespace,
       end-of-file-fixer, check-added-large-files, check-merge-conflict)
-- [ ] `db/models.py` and `db/repository.py` — now carrying both the pre-existing ruff fixes and
+- [x] `db/models.py` and `db/repository.py` — now carrying both the pre-existing ruff fixes and
       ticket 05's typing fixes — are committed
-- [ ] A backend commit touching `app/` or `db/` (e.g. a trivial, reverted comment change) succeeds
+- [x] A backend commit touching `app/` or `db/` (e.g. a trivial, reverted comment change) succeeds
       locally without the pyright hook blocking it
