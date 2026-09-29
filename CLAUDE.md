@@ -14,10 +14,12 @@ The phase plan lives in `.scratch/PLAN.md` and is the source of truth for build 
 at the repo root is the original brief — historical record, its "Moving forward" section is stale.
 
 Phases 0–3 are done and committed. Phase 4 (frontend + delete UI, `.scratch/phase-4-frontend/`)
-is in progress: the REST API, delete plumbing and the frontend scaffold exist and build/type-check
-cleanly, but haven't been through a real browser + real Clerk login yet. The real Clerk +
-Claude Code end-to-end pass over the six MCP tools and four prompts is done (2026-09-29) — see
-`.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
+is functionally done: the REST API, delete plumbing and frontend build/type-check cleanly, and
+the real-browser + real-Clerk pass (login, search, Notebook detail, Note delete, Notebook delete
+with cascade verified at the DB level) is done (2026-09-29) — see
+`.scratch/phase-4-frontend/issues/01-real-browser-clerk-login-end-to-end.md`. Not yet committed.
+The real Clerk + Claude Code end-to-end pass over the six MCP tools and four prompts is done
+(2026-09-29) — see `.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
 `.scratch/phase-3-prompts/issues/01-real-clerk-end-to-end-for-prompts-and-root-summarizer.md`.
 Only the optional cross-app `recall` check (from a second AI client, not just Claude Code) is
 still deferred.

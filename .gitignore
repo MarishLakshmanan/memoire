@@ -8,3 +8,6 @@
 .venv/
 __pycache__/
 *.py[cod]
+
+# Playwright MCP output (screenshots, snapshots, console/network logs)
+.playwright-mcp/
