@@ -9,11 +9,39 @@ no live Clerk network call, since the real OAuth flow needs a browser.
 ## Steps
 
 1. `docker compose up -d` if the DB isn't already running.
-2. `uv run uvicorn app.app:app --reload --port 8000`
-3. Claude Code should already be connected from phase 0 (`claude mcp add ...` /mcp). If not, see
-   the phase 0 spec for setup.
-4. Ask Claude Code to save a note about the current conversation, then list notebooks, then
+2. Check nothing else holds port 8000 — see "Port 8000 is shadowed" below.
+3. `uv run uvicorn app.app:app --reload --port 8000`
+4. Claude Code should already be connected from phase 0 (`claude mcp add ...` /mcp). If not, see
+   the phase 0 spec for setup. **Start the server before the Claude Code session** — the client
+   only connects to MCP servers at session start, so a session opened while the server is down
+   has no ai-notes tools and cannot get them without a restart.
+5. Ask Claude Code to save a note about the current conversation, then list notebooks, then
    retrieve the notebook back, then search for something in it.
+
+## Port 8000 is shadowed by another project
+
+The unrelated `enterprisemvp-app-1` container publishes port 8000 on `0.0.0.0` **and `[::]`**.
+Our uvicorn only binds IPv4 `127.0.0.1:8000`. Windows resolves `localhost` to IPv6 `::1` first,
+so with both running, `http://localhost:8000/mcp` reaches enterprisemvp and returns a FastAPI
+404 — while `http://127.0.0.1:8000/mcp` reaches us and works.
+
+This fails silently and looks like a broken MCP server. Check with
+`netstat -ano | grep ":8000 .*LISTENING"` — exactly one listener should be there. Same root cause
+as the Postgres 5433 choice.
+
+## Confirmed so far (2026-09-29)
+
+Against real Clerk, with the server running and enterprisemvp stopped:
+
+- `/health` returns 200 and the expected resource identifier.
+- Unauthenticated `POST /mcp` returns 401 with `WWW-Authenticate` naming
+  `http://localhost:8000/.well-known/oauth-protected-resource/mcp`.
+- That metadata document resolves and lists the Clerk issuer as its authorization server.
+- Clerk's own authorization-server metadata is reachable.
+- `claude mcp list` reports `ai-notes ... ✔ Connected` — so a real Clerk token is being minted
+  and accepted by `ClerkTokenVerifier` against the current code, not just the phase 0 spike.
+
+Still outstanding: actually calling the six tools and four prompts through the client.
 
 ## What to look for
 
