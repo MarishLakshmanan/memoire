@@ -54,11 +54,15 @@ def load_settings() -> Settings:
 
     key_path = Path(os.getenv("CLERK_PUBLIC_KEY_PATH", "clerk.pem"))
     if not key_path.is_file():
-        raise ValueError(f"Clerk public key not found at {key_path}. Download it from the Clerk dashboard.")
+        raise ValueError(
+            f"Clerk public key not found at {key_path}. Download it from the Clerk dashboard."
+        )
 
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        raise ValueError("DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/ai_notes)")
+        raise ValueError(
+            "DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/ai_notes)"
+        )
 
     cors_origins_raw = os.getenv("CORS_ORIGINS")
     if cors_origins_raw:

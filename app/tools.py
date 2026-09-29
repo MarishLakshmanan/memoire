@@ -7,7 +7,7 @@ querying directly, so the owner filter from Q8 can't be forgotten per-tool.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypedDict
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -109,13 +109,15 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
             ValueError: If `notebook_id` is given but not a valid id, or doesn't exist, or
                 isn't owned by the caller.
         """
-        token = get_access_token()
+        token = _require_token(get_access_token())
         owner_id = _require_subject(token)
         source_app = resolve_source_app(token.client_id)
 
         async with session_scope(session_factory) as session:
             if notebook_id is None:
-                notebook = await repository.create_notebook(session, owner_id, notebook_title or title)
+                notebook = await repository.create_notebook(
+                    session, owner_id, notebook_title or title
+                )
                 target_notebook_id = notebook.id
                 created = True
             else:
@@ -307,32 +309,61 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
                 notebook = await repository.get_notebook(session, owner_id, parsed_id)
                 if notebook is None:
                     raise ValueError(f"No Notebook found with id {notebook_id!r}.")
-                raise ValueError(f"Notebook {notebook_id!r} has no Notes yet; nothing to summarize.")
+                raise ValueError(
+                    f"Notebook {notebook_id!r} has no Notes yet; nothing to summarize."
+                )
 
-            generated_at = datetime.now(timezone.utc)
-            notebook = await repository.save_notebook_summary(session, owner_id, parsed_id, summary, generated_at)
+            generated_at = datetime.now(UTC)
+            notebook = await repository.save_notebook_summary(
+                session, owner_id, parsed_id, summary, generated_at
+            )
             if notebook is None:
                 raise ValueError(f"No Notebook found with id {notebook_id!r}.")
 
-            return {"notebook_id": str(parsed_id), "summary_generated_at": generated_at.isoformat()}
+            return {
+                "notebook_id": str(parsed_id),
+                "summary_generated_at": generated_at.isoformat(),
+            }
 
 
-def _require_subject(token: AccessToken) -> str:
+def _require_token(token: AccessToken | None) -> AccessToken:
+    """Guarantee an access token is present in context.
+
+    The single place that turns a missing token into a checked failure, so callers that
+    need the token itself (not just its subject) can narrow it without repeating this check.
+
+    Args:
+        token (AccessToken | None): The access token returned by `get_access_token()`.
+
+    Returns:
+        AccessToken: The same token, narrowed to non-`None`.
+
+    Raises:
+        ValueError: If there is no token in context.
+    """
+    if token is None:
+        raise ValueError("No access token in context; cannot determine the owner.")
+    return token
+
+
+def _require_subject(token: AccessToken | None) -> str:
     """Extract the Clerk user id from a verified access token.
 
     Args:
-        token (AccessToken): The access token returned by `get_access_token()`.
+        token (AccessToken | None): The access token returned by `get_access_token()`.
 
     Returns:
         str: The token's `subject` claim, used as `owner_id` everywhere.
 
     Raises:
-        ValueError: If the token has no `subject` — a Clerk token always should, so this
-            signals a misconfigured verifier rather than a normal runtime condition.
+        ValueError: If there is no token, or it has no `subject` — a Clerk token always
+            should, so either signals a misconfigured verifier rather than a normal
+            runtime condition.
     """
-    if not token.subject:
+    subject = _require_token(token).subject
+    if not subject:
         raise ValueError("Access token has no subject; cannot determine the owner.")
-    return token.subject
+    return subject
 
 
 def _parse_uuid(value: str, field_name: str) -> uuid.UUID:

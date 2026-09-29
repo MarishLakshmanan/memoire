@@ -11,7 +11,9 @@ from app.prompts import register_prompts
 from app.tools import register_tools
 
 
-def build_server(settings: Settings, session_factory: async_sessionmaker[AsyncSession]) -> MCPServer:
+def build_server(
+    settings: Settings, session_factory: async_sessionmaker[AsyncSession]
+) -> MCPServer:
     """Build the MCP server with Clerk auth and the Notebook/Note tools and prompts.
 
     Args:
@@ -33,9 +35,14 @@ def build_server(settings: Settings, session_factory: async_sessionmaker[AsyncSe
         version="0.1.0",
         instructions="Save summaries of AI chat sessions and retrieve them from other AI apps.",
         token_verifier=verifier,
+        # Passed as plain strings, not pre-wrapped in AnyHttpUrl: pydantic validates and
+        # coerces them using AuthSettings' own field config (url_preserve_empty_path=True,
+        # required for exact RFC 8414 issuer-string matching). A bare AnyHttpUrl(...)
+        # constructed outside that model applies different defaults and silently appends a
+        # trailing slash to a path-less issuer, corrupting it — this is deliberately not that.
         auth=AuthSettings(
-            issuer_url=settings.clerk_issuer,
-            resource_server_url=settings.resource_url,
+            issuer_url=settings.clerk_issuer,  # pyright: ignore[reportArgumentType]
+            resource_server_url=settings.resource_url,  # pyright: ignore[reportArgumentType]
             validate_token_resource=settings.is_production,
         ),
     )

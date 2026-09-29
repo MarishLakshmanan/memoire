@@ -21,19 +21,25 @@ class Notebook(SQLModel, table=True):
     or stale. That fallback is computed at query time, not stored here.
     """
 
-    id: uuid.UUID = Field(sa_column=Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid7))
+    id: uuid.UUID = Field(default_factory=uuid7, sa_type=PG_UUID(as_uuid=True), primary_key=True)
     owner_id: str = Field(index=True, description="Clerk user id that owns this Notebook.")
     title: str
 
-    summary: str | None = Field(default=None, description="Roll-up Summary, markdown. Null until generated.")
+    summary: str | None = Field(
+        default=None, description="Roll-up Summary, markdown. Null until generated."
+    )
     summary_generated_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True)),
-        description="When `summary` was written. Compared against notes' created_at to detect staleness.",
+        description=(
+            "When `summary` was written. Compared against notes' created_at to detect staleness."
+        ),
     )
 
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now(), nullable=False)
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+        sa_column_kwargs={"server_default": sa_func.now()},
     )
 
     notes: list["Note"] = Relationship(
@@ -52,10 +58,13 @@ class Note(SQLModel, table=True):
     another (docs/adr/0001-flat-notes-rather-than-a-tree.md).
     """
 
-    id: uuid.UUID = Field(sa_column=Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid7))
+    id: uuid.UUID = Field(default_factory=uuid7, sa_type=PG_UUID(as_uuid=True), primary_key=True)
     notebook_id: uuid.UUID = Field(
         sa_column=Column(
-            PG_UUID(as_uuid=True), ForeignKey("notebook.id", ondelete="CASCADE"), nullable=False, index=True
+            PG_UUID(as_uuid=True),
+            ForeignKey("notebook.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
         )
     )
     owner_id: str = Field(
@@ -79,11 +88,14 @@ class Note(SQLModel, table=True):
         "is expected to grow and isn't fully known yet."
     )
     chat_link: str | None = Field(
-        default=None, description="Optional URL to the original conversation. User-supplied only."
+        default=None,
+        description="Optional URL to the original conversation. User-supplied only.",
     )
 
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=sa_func.now(), nullable=False)
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+        sa_column_kwargs={"server_default": sa_func.now()},
     )
 
     notebook: Notebook = Relationship(back_populates="notes")

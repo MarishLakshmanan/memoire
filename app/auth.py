@@ -23,7 +23,9 @@ class ClerkTokenVerifier:
             and must be True in production.
     """
 
-    def __init__(self, issuer: str, resource_url: str, public_key: str, require_audience: bool) -> None:
+    def __init__(
+        self, issuer: str, resource_url: str, public_key: str, require_audience: bool
+    ) -> None:
         self._issuer = issuer
         self._resource_url = resource_url
         self._public_key = public_key
@@ -66,7 +68,11 @@ class ClerkTokenVerifier:
 
         # In development `aud` may be absent, but if Clerk did stamp one it must still match.
         if audience is None and claims.get("aud") is not None:
-            logger.warning("Token rejected: aud %r is not %r", claims.get("aud"), self._resource_url)
+            logger.warning(
+                "Token rejected: aud %r is not %r",
+                claims.get("aud"),
+                self._resource_url,
+            )
             return None
 
         scope = claims.get("scope") or ""

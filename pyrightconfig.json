@@ -1,0 +1,10 @@
+{
+    "include": [
+        "app",
+        "db"
+    ],
+    "exclude": [
+        "**/__pycache__"
+    ],
+    "typeCheckingMode": "strict"
+}

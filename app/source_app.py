@@ -30,6 +30,9 @@ def resolve_source_app(client_id: str) -> str:
     """
     label = _KNOWN_CLIENTS.get(client_id)
     if label is None:
-        logger.warning("Unrecognized MCP client_id %r — add it to _KNOWN_CLIENTS once confirmed working.", client_id)
+        logger.warning(
+            "Unrecognized MCP client_id %r — add it to _KNOWN_CLIENTS once confirmed working.",
+            client_id,
+        )
         return client_id
     return label

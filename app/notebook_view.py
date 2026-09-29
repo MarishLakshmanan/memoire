@@ -34,7 +34,9 @@ def render_notebook_view(notebook: Notebook, notes: list[Note]) -> str:
     if not newer:
         return notebook.summary
 
-    addendum = f"{len(newer)} note(s) added since this summary was written:\n\n{_format_note_index(newer)}"
+    addendum = (
+        f"{len(newer)} note(s) added since this summary was written:\n\n{_format_note_index(newer)}"
+    )
     return f"{notebook.summary}\n\n---\n\n{addendum}"
 
 
@@ -47,7 +49,10 @@ def _format_note_index(notes: list[Note]) -> str:
     Returns:
         str: One numbered entry per Note.
     """
-    lines = [f"{i}. [{note.id}] {note.title}\n   {snippet(note.summary)}" for i, note in enumerate(notes, start=1)]
+    lines = [
+        f"{i}. [{note.id}] {note.title}\n   {snippet(note.summary)}"
+        for i, note in enumerate(notes, start=1)
+    ]
     return "\n".join(lines)
 
 

@@ -4,8 +4,9 @@ Run with: uv run uvicorn app.app:app --reload
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import TypedDict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,9 @@ engine = build_engine(settings.database_url)
 session_factory = build_session_factory(engine)
 
 mcp_server = build_server(settings, session_factory)
-session_verifier = ClerkSessionVerifier(issuer=settings.clerk_issuer, public_key=settings.clerk_public_key)
+session_verifier = ClerkSessionVerifier(
+    issuer=settings.clerk_issuer, public_key=settings.clerk_public_key
+)
 api_router = build_api_router(session_factory, session_verifier)
 
 # Must run before `session_manager` is touched: it raises RuntimeError otherwise.
@@ -31,7 +34,7 @@ mcp_app = mcp_server.streamable_http_app()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     """Run the MCP session manager, and dispose the DB engine on shutdown.
 
     A mounted sub-application's own lifespan never runs, so without this every request
@@ -60,12 +63,19 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+class HealthStatus(TypedDict):
+    """What `/health` returns."""
+
+    status: str
+    resource: str
+
+
 @app.get("/health")
-def health() -> dict:
+def health() -> HealthStatus:
     """Report that the host app is up, without requiring auth.
 
     Returns:
-        dict: Status plus the resource identifier this server expects in token audiences.
+        HealthStatus: Status plus the resource identifier this server expects in token audiences.
     """
     return {"status": "ok", "resource": settings.resource_url}
 

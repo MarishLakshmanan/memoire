@@ -26,13 +26,17 @@ async def create_notebook(session: AsyncSession, owner_id: str, title: str) -> N
     Returns:
         Notebook: The newly created Notebook, with its id populated.
     """
-    notebook = Notebook(owner_id=owner_id, title=title)
+    # created_at has no client-side default: Postgres's server_default populates it on
+    # flush, but SQLModel's generated constructor doesn't know that and treats it as required.
+    notebook = Notebook(owner_id=owner_id, title=title)  # pyright: ignore[reportCallIssue]
     session.add(notebook)
     await session.flush()
     return notebook
 
 
-async def get_notebook(session: AsyncSession, owner_id: str, notebook_id: uuid.UUID) -> Notebook | None:
+async def get_notebook(
+    session: AsyncSession, owner_id: str, notebook_id: uuid.UUID
+) -> Notebook | None:
     """Fetch a Notebook by id, scoped to its owner.
 
     Args:
@@ -44,7 +48,11 @@ async def get_notebook(session: AsyncSession, owner_id: str, notebook_id: uuid.U
     Returns:
         Notebook | None: The Notebook if it exists and is owned by `owner_id`, else None.
     """
-    return await session.get(Notebook, notebook_id) if await _owned_notebook(session, owner_id, notebook_id) else None
+    return (
+        await session.get(Notebook, notebook_id)
+        if await _owned_notebook(session, owner_id, notebook_id)
+        else None
+    )
 
 
 async def _owned_notebook(session: AsyncSession, owner_id: str, notebook_id: uuid.UUID) -> bool:
@@ -100,11 +108,14 @@ async def add_note(
         chat_link (str | None): Optional URL to the original conversation.
 
     Returns:
-        Note | None: The newly created Note, or None if no Notebook with that id is owned by `owner_id`.
+        Note | None: The newly created Note, or None if no Notebook with that id is owned by
+            `owner_id`.
     """
     if not await _owned_notebook(session, owner_id, notebook_id):
         return None
-    note = Note(
+    # created_at has no client-side default: Postgres's server_default populates it on
+    # flush, but SQLModel's generated constructor doesn't know that and treats it as required.
+    note = Note(  # pyright: ignore[reportCallIssue]
         notebook_id=notebook_id,
         owner_id=owner_id,
         title=title,
@@ -133,7 +144,10 @@ async def list_notes(session: AsyncSession, owner_id: str, notebook_id: uuid.UUI
     stmt = (
         select(Note)
         .where(Note.notebook_id == notebook_id, Note.owner_id == owner_id)
-        .order_by(Note.created_at)
+        # SQLModel doesn't statically type a class-level field as a SQLAlchemy column
+        # expression for pyright, even for plain (non-sa_column) fields; this is a known
+        # SQLModel/pyright gap, not a real type error.
+        .order_by(Note.created_at)  # pyright: ignore[reportArgumentType]
     )
     return list((await session.exec(stmt)).all())
 
@@ -149,7 +163,15 @@ async def list_recent_notebooks(session: AsyncSession, owner_id: str, limit: int
     Returns:
         list[Notebook]: Notebooks owned by `owner_id`, newest first.
     """
-    stmt = select(Notebook).where(Notebook.owner_id == owner_id).order_by(Notebook.created_at.desc()).limit(limit)
+    stmt = (
+        select(Notebook)
+        .where(Notebook.owner_id == owner_id)
+        # Same known SQLModel/pyright gap as list_notes' order_by above.
+        .order_by(
+            Notebook.created_at.desc()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+        )
+        .limit(limit)
+    )
     return list((await session.exec(stmt)).all())
 
 
@@ -168,7 +190,11 @@ async def count_notes(session: AsyncSession, notebook_id: uuid.UUID) -> int:
 
 
 async def save_notebook_summary(
-    session: AsyncSession, owner_id: str, notebook_id: uuid.UUID, summary: str, generated_at: datetime
+    session: AsyncSession,
+    owner_id: str,
+    notebook_id: uuid.UUID,
+    summary: str,
+    generated_at: datetime,
 ) -> Notebook | None:
     """Store a Roll-up Summary for a Notebook.
 
@@ -180,7 +206,8 @@ async def save_notebook_summary(
         generated_at (datetime): When the summary was generated, used later to detect staleness.
 
     Returns:
-        Notebook | None: The updated Notebook, or None if no Notebook with that id is owned by `owner_id`.
+        Notebook | None: The updated Notebook, or None if no Notebook with that id is owned by
+            `owner_id`.
     """
     notebook = await get_notebook(session, owner_id, notebook_id)
     if notebook is None:

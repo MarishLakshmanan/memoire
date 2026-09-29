@@ -6,6 +6,7 @@ has no delete tool (docs/adr/0003), so deletion only exists on this path.
 """
 
 import uuid
+from typing import TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -15,6 +16,49 @@ from app.notebook_view import render_notebook_view, snippet
 from app.web_auth import ClerkSessionVerifier, build_require_user_id
 from db import repository
 from db.session import session_scope
+
+
+class NotebookSummary(TypedDict):
+    """One entry in `list_notebooks`'s result when called with no `q`."""
+
+    id: str
+    title: str
+    note_count: int
+    created_at: str
+    has_summary: bool
+
+
+class NoteHit(TypedDict):
+    """One entry in `list_notebooks`'s result when called with `q`."""
+
+    id: str
+    notebook_id: str
+    title: str
+    snippet: str
+    tags: list[str]
+    source_app: str
+    created_at: str
+
+
+class NoteFull(TypedDict):
+    """One Note inside a `NotebookDetail`'s `notes` list."""
+
+    id: str
+    title: str
+    summary: str
+    tags: list[str]
+    source_app: str
+    chat_link: str | None
+    created_at: str
+
+
+class NotebookDetail(TypedDict):
+    """What `get_notebook` returns."""
+
+    id: str
+    title: str
+    view: str
+    notes: list[NoteFull]
 
 
 def build_api_router(
@@ -33,7 +77,9 @@ def build_api_router(
     require_user_id = build_require_user_id(verifier)
 
     @router.get("/notebooks")
-    async def list_notebooks(q: str | None = None, owner_id: str = Depends(require_user_id)) -> list[dict]:
+    async def list_notebooks(
+        q: str | None = None, owner_id: str = Depends(require_user_id)
+    ) -> list[NotebookSummary] | list[NoteHit]:
         """List the caller's Notebooks, or search their Notes if `q` is given.
 
         Args:
@@ -41,7 +87,8 @@ def build_api_router(
             owner_id (str): Injected from the verified session token.
 
         Returns:
-            list[dict]: Notebook summaries (no `q`), or matching Note hits (with `q`).
+            list[NotebookSummary] | list[NoteHit]: Notebook summaries (no `q`), or matching
+                Note hits (with `q`).
         """
         async with session_scope(session_factory) as session:
             if q:
@@ -72,7 +119,9 @@ def build_api_router(
             ]
 
     @router.get("/notebooks/{notebook_id}")
-    async def get_notebook(notebook_id: str, owner_id: str = Depends(require_user_id)) -> dict:
+    async def get_notebook(
+        notebook_id: str, owner_id: str = Depends(require_user_id)
+    ) -> NotebookDetail:
         """Fetch a Notebook's rendered view plus every one of its Notes in full.
 
         Args:
@@ -80,7 +129,7 @@ def build_api_router(
             owner_id (str): Injected from the verified session token.
 
         Returns:
-            dict: `id`, `title`, `view` (the retrieve-style rendered text) and `notes`.
+            NotebookDetail: `id`, `title`, `view` (the retrieve-style rendered text) and `notes`.
 
         Raises:
             HTTPException: 404 if no such Notebook is owned by the caller.
@@ -127,7 +176,9 @@ def build_api_router(
             raise HTTPException(status_code=404, detail="Notebook not found.")
 
     @router.delete("/notebooks/{notebook_id}/notes/{note_id}", status_code=204)
-    async def delete_note(notebook_id: str, note_id: str, owner_id: str = Depends(require_user_id)) -> None:
+    async def delete_note(
+        notebook_id: str, note_id: str, owner_id: str = Depends(require_user_id)
+    ) -> None:
         """Delete a single Note out of a Notebook.
 
         `notebook_id` is only used to keep the URL shape consistent with `get_notebook`;

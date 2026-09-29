@@ -62,6 +62,10 @@ Postgres is on **5433**, not 5432; 5432 is taken by an unrelated project's conta
 Secrets live in `.env` (gitignored, along with `clerk.pem`). Never echo `.env` contents into a
 message — it holds a live Clerk secret key.
 
+`.pre-commit-config.yaml` runs ruff on `app/`/`db`/`migrations`, pyright (strict) and bandit on
+`app/`/`db` only, and eslint, `tsc`, and `npm audit --audit-level=high` on `frontend/`, on every
+commit. `uv run pre-commit install` sets it up.
+
 ## MCP surface
 
 Tools:
