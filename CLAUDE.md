@@ -6,16 +6,18 @@ that conversation. Domain vocabulary is in `CONTEXT.md` — use those words, not
 synonyms.
 
 Backend: FastAPI + the official MCP Python SDK + Postgres, with Clerk as the OAuth authorization
-server. Frontend (phase 4, not started): React + Vite + Tailwind v4 + Clerk.
+server. Frontend: React + Vite + Tailwind v4 + Clerk.
 
 ## Where things stand
 
 The phase plan lives in `.scratch/PLAN.md` and is the source of truth for build order. `plan.md`
 at the repo root is the original brief — historical record, its "Moving forward" section is stale.
 
-Phases 0–3 are done and committed. Phase 4 (frontend + delete UI) has not started. The real
-Clerk + Claude Code end-to-end pass over the six tools and four prompts is done (2026-09-29) —
-see `.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
+Phases 0–3 are done and committed. Phase 4 (frontend + delete UI, `.scratch/phase-4-frontend/`)
+is in progress: the REST API, delete plumbing and the frontend scaffold exist and build/type-check
+cleanly, but haven't been through a real browser + real Clerk login yet. The real Clerk +
+Claude Code end-to-end pass over the six MCP tools and four prompts is done (2026-09-29) — see
+`.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
 `.scratch/phase-3-prompts/issues/01-real-clerk-end-to-end-for-prompts-and-root-summarizer.md`.
 Only the optional cross-app `recall` check (from a second AI client, not just Claude Code) is
 still deferred.
@@ -31,11 +33,18 @@ still deferred.
   - `prompts.py` — the four MCP prompts; plain instructional strings, no DB access.
   - `notebook_view.py` — renders a Notebook for `retrieve`, including the staleness delta.
   - `source_app.py` — maps an OAuth `client_id` to a Source App name.
+  - `web_auth.py` — `ClerkSessionVerifier`, verifies the browser's Clerk *session* token
+    (not the OAuth access token MCP clients use — see `.scratch/phase-4-frontend/spec.md`).
+  - `api.py` — the `/api` REST router the frontend calls: list/search, Notebook detail,
+    Notebook/Note delete. The only place anything gets deleted (ADR-0003).
 - `db/` — `models.py` (SQLModel), `repository.py` (ownership-enforcing queries), `session.py`.
 - `migrations/` — Alembic, async template.
 - `docs/adr/` — architectural decisions. `docs/agents/` — issue tracker and domain doc conventions.
 - `.scratch/` — the issue tracker. **Tracked in git deliberately**; do not gitignore it.
-- `assets/mockup/` — `home.png`, `content.png`, the phase 4 frontend mockups.
+- `assets/mockup/` — `home.png`, `content.png`, the original frontend mockups. Predate
+  ADR-0001 (flat Notes) — their graph/parent/child sections don't apply; see the phase 4 spec.
+- `frontend/` — Vite + React + TS + Tailwind v4 + `@clerk/clerk-react`. `npm run dev` (port 5173),
+  needs its own `frontend/.env` (see `frontend/.env.example`).
 
 ## Running it
 
@@ -61,7 +70,8 @@ Tools:
 - `get_notebook_contents` — full untruncated Notes, for synthesising a Roll-up Summary.
 - `save_notebook_summary` — writes a Roll-up Summary back.
 
-There is deliberately **no delete tool** (ADR-0003). Delete belongs to the phase 4 UI only.
+There is deliberately **no delete tool** (ADR-0003). Delete belongs to the frontend only, via
+`DELETE /api/notebooks/{id}` and `DELETE /api/notebooks/{id}/notes/{note_id}`.
 
 Prompts: `save_session`, `summarize_notebook`, `recall`, `how_to`. Named to read well as Claude
 Code slash commands (`/ai-notes:save_session`).

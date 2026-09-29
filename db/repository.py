@@ -192,6 +192,48 @@ async def save_notebook_summary(
     return notebook
 
 
+async def delete_notebook(session: AsyncSession, owner_id: str, notebook_id: uuid.UUID) -> bool:
+    """Delete a Notebook and all of its Notes.
+
+    Not used by any MCP tool (docs/adr/0003) — only the web API's delete UI calls this.
+
+    Args:
+        session (AsyncSession): The active database session.
+        owner_id (str): The caller's Clerk user id.
+        notebook_id (uuid.UUID): The Notebook to delete.
+
+    Returns:
+        bool: True if a Notebook was found and deleted, False if none was owned by `owner_id`.
+    """
+    notebook = await get_notebook(session, owner_id, notebook_id)
+    if notebook is None:
+        return False
+    await session.delete(notebook)
+    await session.flush()
+    return True
+
+
+async def delete_note(session: AsyncSession, owner_id: str, note_id: uuid.UUID) -> bool:
+    """Delete a single Note out of its Notebook.
+
+    Not used by any MCP tool (docs/adr/0003) — only the web API's delete UI calls this.
+
+    Args:
+        session (AsyncSession): The active database session.
+        owner_id (str): The caller's Clerk user id.
+        note_id (uuid.UUID): The Note to delete.
+
+    Returns:
+        bool: True if a Note was found and deleted, False if none was owned by `owner_id`.
+    """
+    note = await get_note(session, owner_id, note_id)
+    if note is None:
+        return False
+    await session.delete(note)
+    await session.flush()
+    return True
+
+
 async def search_notes(session: AsyncSession, owner_id: str, query: str, limit: int) -> list[Note]:
     """Full-text search a caller's Notes by title and summary.
 

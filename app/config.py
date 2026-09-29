@@ -19,6 +19,7 @@ class Settings:
         is_production (bool): True when running in production, which turns audience checking on.
         clerk_public_key (str): PEM-encoded RSA public key used to verify token signatures.
         database_url (str): `postgresql+asyncpg://` connection string.
+        cors_origins (list[str]): Origins allowed to call the /api routes from a browser.
     """
 
     clerk_issuer: str
@@ -26,6 +27,7 @@ class Settings:
     is_production: bool
     clerk_public_key: str
     database_url: str
+    cors_origins: list[str]
 
 
 def load_settings() -> Settings:
@@ -58,10 +60,19 @@ def load_settings() -> Settings:
     if not database_url:
         raise ValueError("DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/ai_notes)")
 
+    cors_origins_raw = os.getenv("CORS_ORIGINS")
+    if cors_origins_raw:
+        cors_origins = [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()]
+    elif app_env == "development":
+        cors_origins = ["http://localhost:5173"]
+    else:
+        raise ValueError("CORS_ORIGINS is required in production (comma-separated origins).")
+
     return Settings(
         clerk_issuer=issuer.rstrip("/"),
         resource_url=resource_url,
         is_production=app_env == "production",
         clerk_public_key=key_path.read_text(),
         database_url=database_url,
+        cors_origins=cors_origins,
     )

@@ -8,9 +8,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import build_api_router
 from app.config import load_settings
 from app.server import build_server
+from app.web_auth import ClerkSessionVerifier
 from db.session import build_engine, build_session_factory
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +23,8 @@ engine = build_engine(settings.database_url)
 session_factory = build_session_factory(engine)
 
 mcp_server = build_server(settings, session_factory)
+session_verifier = ClerkSessionVerifier(issuer=settings.clerk_issuer, public_key=settings.clerk_public_key)
+api_router = build_api_router(session_factory, session_verifier)
 
 # Must run before `session_manager` is touched: it raises RuntimeError otherwise.
 mcp_app = mcp_server.streamable_http_app()
@@ -44,6 +49,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="ai-notes", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "DELETE"],
+    allow_headers=["Authorization"],
+)
+
+app.include_router(api_router)
 
 
 @app.get("/health")
