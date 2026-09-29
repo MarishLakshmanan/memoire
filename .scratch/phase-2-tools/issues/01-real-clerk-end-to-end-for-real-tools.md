@@ -1,6 +1,6 @@
 # Test save_note / retrieve / list_notebooks / search_notes through real Clerk + Claude Code
 
-Status: open
+Status: resolved
 
 Phase 0 proved the auth chain end to end with a throwaway `ping` tool. Phase 2 proved the four
 real tools end to end through the actual MCP protocol, but against a stubbed token verifier —
@@ -49,3 +49,24 @@ That the real Summarizer-shaped flow (a model writing a summary and calling `sav
 without an explicit prompt yet — this validates the tool descriptions are clear enough on their
 own. Also confirms `resolve_source_app` maps the real Claude Code `client_id` correctly (it
 should, per the phase-0 finding, but this is the first time it runs against these tools).
+
+## Confirmed (2026-09-29, continued)
+
+All six tools called for real against the live server (real Clerk token, real Postgres, no
+stubbed verifier), unprompted — Claude Code wrote and called these on its own from the tool
+descriptions alone, matching the Summarizer-shaped flow this issue asked to check:
+
+- `save_note` — created a new Notebook, then appended a second Note to it (`notebook_created`
+  correctly `true` then `false`).
+- `list_notebooks` — reflected the resulting Notebook with an accurate `note_count`.
+- `retrieve` — served the Derived Summary fallback before a roll-up existed, then correctly
+  switched to serving the Roll-up Summary once `save_notebook_summary` was called.
+- `search_notes` — full-text search found the note and reported `"source_app": "claude-code"`
+  on the hit, confirming `resolve_source_app` maps the real Claude Code OAuth `client_id`
+  correctly.
+- `get_notebook_contents` — returned both Notes in full (untruncated), oldest first.
+- `save_notebook_summary` — accepted a genuine cross-Note synthesis, not a concatenation, and
+  `retrieve` immediately reflected it.
+
+Tools are fully verified. Prompts (`save_session`, `summarize_notebook`, `recall`, `how_to`)
+are still outstanding — see the phase-3 issue, since only the user can invoke slash commands.

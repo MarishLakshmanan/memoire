@@ -13,9 +13,12 @@ server. Frontend (phase 4, not started): React + Vite + Tailwind v4 + Clerk.
 The phase plan lives in `.scratch/PLAN.md` and is the source of truth for build order. `plan.md`
 at the repo root is the original brief — historical record, its "Moving forward" section is stale.
 
-Phases 0–3 are done and committed. Phase 4 (frontend + delete UI) has not started. The open
-cross-phase item is a real Clerk + Claude Code end-to-end pass over the six tools and four
-prompts — everything so far past phase 0's `ping` was verified against a stubbed token verifier.
+Phases 0–3 are done and committed. Phase 4 (frontend + delete UI) has not started. The real
+Clerk + Claude Code end-to-end pass over the six tools and four prompts is done (2026-09-29) —
+see `.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
+`.scratch/phase-3-prompts/issues/01-real-clerk-end-to-end-for-prompts-and-root-summarizer.md`.
+Only the optional cross-app `recall` check (from a second AI client, not just Claude Code) is
+still deferred.
 
 ## Layout
 
