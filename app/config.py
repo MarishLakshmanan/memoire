@@ -61,7 +61,7 @@ def load_settings() -> Settings:
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise ValueError(
-            "DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/ai_notes)"
+            "DATABASE_URL is required (e.g. postgresql+asyncpg://user:pass@localhost:5433/memoire)"
         )
 
     cors_origins_raw = os.getenv("CORS_ORIGINS")

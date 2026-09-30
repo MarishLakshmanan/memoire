@@ -1,4 +1,4 @@
-# AI Notes
+# Mémoire
 
 A shared notes store for AI chat sessions. A user summarises a session with one AI tool, saves it here, and references it from a different AI tool later — so context can cross between assistants that cannot see each other's conversations.
 

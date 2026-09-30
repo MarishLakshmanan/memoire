@@ -1,4 +1,4 @@
-# ai-notes
+# mémoire
 
 A notes store for AI chat sessions, exposed to AI clients as an MCP server. A user summarises a
 session in one AI tool, saves it here, then references it from a different AI tool that cannot see

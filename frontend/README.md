@@ -1,4 +1,4 @@
-# ai-notes frontend
+# mémoire frontend
 
 React + Vite + TypeScript + Tailwind v4 + Clerk. Lists Notebooks, shows a Notebook's Notes, and
 handles deletion — the only place anything gets deleted (see [ADR-0003](../docs/adr/0003-no-delete-tool-on-the-mcp-server.md)).

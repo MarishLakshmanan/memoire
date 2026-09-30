@@ -1,14 +1,14 @@
-# ai-notes
+# mémoire
 
 A shared notes store for AI chat sessions, exposed to AI clients as an **MCP server**.
 
 The problem it solves: summarize a session in one AI tool (say, Claude Code), save it here, then
 pull that context into a *different* AI tool later — one that has no way to see the earlier
-conversation. ai-notes is the memory layer that crosses that gap.
+conversation. mémoire is the memory layer that crosses that gap.
 
 ```
 Claude Code ──┐                                   ┌── Claude Code (later, different chat)
-              ├── save_session ──▶ ai-notes ◀── recall ──┤
+              ├── save_session ──▶ mémoire ◀── recall ──┤
 ChatGPT ──────┘        (MCP over OAuth)                  └── any other MCP-speaking client
 ```
 
@@ -64,7 +64,7 @@ auth didn't guard against. Getting this working end-to-end surfaced real, specif
 
 **Tools** — `save_note`, `retrieve`, `list_notebooks`, `search_notes`, `get_notebook_contents`,
 `save_notebook_summary`. **Prompts** — `save_session`, `summarize_notebook`, `recall`, `how_to`
-(named to read well as Claude Code slash commands: `/ai-notes:save_session`).
+(named to read well as Claude Code slash commands: `/mémoire:save_session`).
 
 ## Running it locally
 
@@ -73,8 +73,8 @@ application (for `CLERK_ISSUER`, a publishable key, a secret key, and the instan
 downloaded as `clerk.pem`).
 
 ```bash
-git clone https://github.com/<you>/ai-notes.git
-cd ai-notes
+git clone https://github.com/<you>/memoire.git
+cd memoire
 cp .env.example .env              # fill in your Clerk values
 docker compose up -d               # Postgres on port 5433
 uv run alembic upgrade head

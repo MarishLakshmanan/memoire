@@ -64,7 +64,7 @@ def build_server(
     )
 
     server = MCPServer(
-        name="ai-notes",
+        name="mémoire",
         version="0.1.0",
         instructions="Save summaries of AI chat sessions and retrieve them from other AI apps.",
         token_verifier=verifier,

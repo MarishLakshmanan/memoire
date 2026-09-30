@@ -31,7 +31,7 @@ def register_prompts(server: MCPServer) -> None:
             else "- Don't ask which Notebook to use unless the user has clearly said this "
             "continues an earlier one — otherwise let a new Notebook be created automatically."
         )
-        return f"""Summarize the current conversation and save it to the user's ai-notes app.
+        return f"""Summarize the current conversation and save it to the user's mémoire app.
 
 Rules:
 - Summarize ONLY this session. You may reference earlier sessions briefly (e.g. "continuing
@@ -81,7 +81,7 @@ Steps:
         """
         looking_for = f'They are looking for: "{query}".\n\n' if query else ""
         return f"""The user wants to bring in context they saved from a previous AI session,
-via their ai-notes app — an external memory store that carries context between different
+via their mémoire app — an external memory store that carries context between different
 AI assistants.
 
 {looking_for}Steps:
@@ -92,19 +92,19 @@ AI assistants.
    (Notes), each with its own id and a short snippet.
 3. If you need more detail on one specific session, call retrieve again with that Note's id
    to get its full content.
-4. Tell the user this context came from their ai-notes app, and mention if there's more depth
+4. Tell the user this context came from their mémoire app, and mention if there's more depth
    available (other Notes in the Notebook) that you haven't pulled in."""
 
     @server.prompt()
     def how_to() -> str:
-        """Explain what ai-notes is and how to use it.
+        """Explain what mémoire is and how to use it.
 
         Returns:
             str: A short overview of the tools and prompts.
         """
-        return """# ai-notes
+        return """# mémoire
 
-ai-notes lets you carry context between different AI assistants. Summarize a session here,
+mémoire lets you carry context between different AI assistants. Summarize a session here,
 then reference it later from a different AI app that can't otherwise see that conversation.
 
 ## Structure

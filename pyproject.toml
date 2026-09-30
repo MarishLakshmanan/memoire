@@ -1,7 +1,7 @@
 [project]
-name = "ai-notes"
+name = "memoire"
 version = "0.1.0"
-description = "Add your description here"
+description = "A shared notes store for AI chat sessions, exposed to AI clients as an MCP server."
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",

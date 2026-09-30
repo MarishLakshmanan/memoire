@@ -2,19 +2,19 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: ai_notes
-      POSTGRES_PASSWORD: ai_notes
-      POSTGRES_DB: ai_notes
+      POSTGRES_USER: memoire
+      POSTGRES_PASSWORD: memoire
+      POSTGRES_DB: memoire
     ports:
       # 5433, not 5432 — another project's Postgres container already holds 5432 on this machine.
       - "5433:5432"
     volumes:
-      - ai_notes_pg_data:/var/lib/postgresql/data
+      - memoire_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_notes"]
+      test: ["CMD-SHELL", "pg_isready -U memoire"]
       interval: 2s
       timeout: 2s
       retries: 15
 
 volumes:
-  ai_notes_pg_data:
+  memoire_pg_data:

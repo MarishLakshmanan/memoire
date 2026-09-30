@@ -48,7 +48,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     await engine.dispose()
 
 
-app = FastAPI(title="ai-notes", lifespan=lifespan)
+app = FastAPI(title="mémoire", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

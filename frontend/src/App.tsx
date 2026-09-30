@@ -15,7 +15,7 @@ export default function App() {
       <Router>
         <header className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <Link to="/" className="text-lg font-semibold">
-            ai-notes
+            mémoire
           </Link>
           <SignedIn>
             <UserButton />
