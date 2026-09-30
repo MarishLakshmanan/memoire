@@ -10,14 +10,14 @@ server. Frontend: React + Vite + Tailwind v4 + Clerk.
 
 ## Where things stand
 
-The phase plan lives in `.scratch/PLAN.md` and is the source of truth for build order. `plan.md`
-at the repo root is the original brief — historical record, its "Moving forward" section is stale.
+The phase plan lives in `.scratch/PLAN.md` and is the source of truth for build order. The
+original brief (`plan.md`) has been removed now that the phases it describes are done and
+superseded by this file and the ADRs.
 
-Phases 0–3 are done and committed. Phase 4 (frontend + delete UI, `.scratch/phase-4-frontend/`)
-is functionally done: the REST API, delete plumbing and frontend build/type-check cleanly, and
-the real-browser + real-Clerk pass (login, search, Notebook detail, Note delete, Notebook delete
+Phases 0–4 are done and committed, including the frontend, delete UI, and the REST API. The
+real-browser + real-Clerk pass (login, search, Notebook detail, Note delete, Notebook delete
 with cascade verified at the DB level) is done (2026-09-29) — see
-`.scratch/phase-4-frontend/issues/01-real-browser-clerk-login-end-to-end.md`. Not yet committed.
+`.scratch/phase-4-frontend/issues/01-real-browser-clerk-login-end-to-end.md`.
 The real Clerk + Claude Code end-to-end pass over the six MCP tools and four prompts is done
 (2026-09-29) — see `.scratch/phase-2-tools/issues/01-real-clerk-end-to-end-for-real-tools.md` and
 `.scratch/phase-3-prompts/issues/01-real-clerk-end-to-end-for-prompts-and-root-summarizer.md`.
