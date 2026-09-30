@@ -46,6 +46,7 @@ def decode_clerk_jwt(
             issuer=issuer,
             audience=audience if require_audience else None,
             options={"require": ["exp", "iss", "sub"], "verify_aud": require_audience},
+            leeway=30,
         )
     except jwt.PyJWTError as exc:
         logger.warning("Token rejected: %s", exc)
