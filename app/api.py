@@ -13,43 +13,30 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.notebook_view import render_notebook_view, snippet
+from app.notebook_views import (
+    NotebookSummary,
+    NoteHit,
+    parse_id,
+    to_note_full,
+    to_note_hit,
+    to_notebook_summary,
+)
+from app.notebook_views import (
+    NoteFull as _NoteFullBase,
+)
 from app.web_auth import ClerkSessionVerifier, build_require_user_id
 from db import repository
 from db.session import session_scope
 
 
-class NotebookSummary(TypedDict):
-    """One entry in `list_notebooks`'s result when called with no `q`."""
+class NoteFull(_NoteFullBase):
+    """One Note inside a `NotebookDetail`'s `notes` list — the shared shape plus Chat Link.
 
-    id: str
-    title: str
-    note_count: int
-    created_at: str
-    has_summary: bool
+    Unlike `app/tools.py`'s `get_notebook_contents`, the REST detail view also surfaces Chat
+    Link, so this extends the shared `NoteFull` rather than being identical to it.
+    """
 
-
-class NoteHit(TypedDict):
-    """One entry in `list_notebooks`'s result when called with `q`."""
-
-    id: str
-    notebook_id: str
-    title: str
-    snippet: str
-    tags: list[str]
-    source_app: str
-    created_at: str
-
-
-class NoteFull(TypedDict):
-    """One Note inside a `NotebookDetail`'s `notes` list."""
-
-    id: str
-    title: str
-    summary: str
-    tags: list[str]
-    source_app: str
     chat_link: str | None
-    created_at: str
 
 
 class NotebookDetail(TypedDict):
@@ -93,30 +80,12 @@ def build_api_router(
         async with session_scope(session_factory) as session:
             if q:
                 notes = await repository.search_notes(session, owner_id, q, limit=20)
-                return [
-                    {
-                        "id": str(note.id),
-                        "notebook_id": str(note.notebook_id),
-                        "title": note.title,
-                        "snippet": snippet(note.summary, 200),
-                        "tags": note.tags,
-                        "source_app": note.source_app,
-                        "created_at": note.created_at.isoformat(),
-                    }
-                    for note in notes
-                ]
+                return [to_note_hit(note, snippet(note.summary, 200)) for note in notes]
 
-            notebooks = await repository.list_recent_notebooks(session, owner_id, limit=10)
-            return [
-                {
-                    "id": str(nb.id),
-                    "title": nb.title,
-                    "note_count": await repository.count_notes(session, nb.id),
-                    "created_at": nb.created_at.isoformat(),
-                    "has_summary": nb.summary is not None,
-                }
-                for nb in notebooks
-            ]
+            notebooks_with_counts = await repository.list_recent_notebooks_with_counts(
+                session, owner_id, limit=10
+            )
+            return [to_notebook_summary(nb, count) for nb, count in notebooks_with_counts]
 
     @router.get("/notebooks/{notebook_id}")
     async def get_notebook(
@@ -146,16 +115,7 @@ def build_api_router(
                 "title": notebook.title,
                 "view": render_notebook_view(notebook, notes),
                 "notes": [
-                    {
-                        "id": str(note.id),
-                        "title": note.title,
-                        "summary": note.summary,
-                        "tags": note.tags,
-                        "source_app": note.source_app,
-                        "chat_link": note.chat_link,
-                        "created_at": note.created_at.isoformat(),
-                    }
-                    for note in notes
+                    NoteFull(**to_note_full(note), chat_link=note.chat_link) for note in notes
                 ],
             }
 
@@ -215,6 +175,6 @@ def _parse_uuid(value: str) -> uuid.UUID:
             than a validation error, so malformed ids don't leak anything about real ones.
     """
     try:
-        return uuid.UUID(value)
+        return parse_id(value)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Not found.") from exc

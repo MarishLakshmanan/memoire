@@ -37,6 +37,11 @@ export interface NotebookDetail {
   notes: NoteFull[]
 }
 
+/** What GET /api/notebooks is showing: a plain listing, or the results of a search. */
+export type NotebookListResult =
+  | { kind: 'notebooks'; items: NotebookSummary[] }
+  | { kind: 'hits'; items: NoteHit[] }
+
 async function request<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -52,12 +57,14 @@ async function request<T>(path: string, token: string, init?: RequestInit): Prom
   return response.json() as Promise<T>
 }
 
-export function listNotebooks(token: string): Promise<NotebookSummary[]> {
-  return request('/api/notebooks', token)
+export async function listNotebooks(token: string): Promise<NotebookListResult> {
+  const items = await request<NotebookSummary[]>('/api/notebooks', token)
+  return { kind: 'notebooks', items }
 }
 
-export function searchNotes(token: string, query: string): Promise<NoteHit[]> {
-  return request(`/api/notebooks?q=${encodeURIComponent(query)}`, token)
+export async function searchNotes(token: string, query: string): Promise<NotebookListResult> {
+  const items = await request<NoteHit[]>(`/api/notebooks?q=${encodeURIComponent(query)}`, token)
+  return { kind: 'hits', items }
 }
 
 export function getNotebook(token: string, id: string): Promise<NotebookDetail> {

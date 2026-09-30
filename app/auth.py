@@ -2,8 +2,9 @@
 
 import logging
 
-import jwt
 from mcp.server.auth.provider import AccessToken
+
+from app.clerk_jwt import decode_clerk_jwt
 
 logger = logging.getLogger(__name__)
 
@@ -48,20 +49,14 @@ class ClerkTokenVerifier:
             AccessToken | None: Access info with `resource` taken from the token's `aud`,
                 or None if the token failed any check.
         """
-        try:
-            claims = jwt.decode(
-                token,
-                self._public_key,
-                algorithms=["RS256"],
-                issuer=self._issuer,
-                audience=self._resource_url if self._require_audience else None,
-                options={
-                    "require": ["exp", "iss", "sub"],
-                    "verify_aud": self._require_audience,
-                },
-            )
-        except jwt.PyJWTError as exc:
-            logger.warning("Token rejected: %s", exc)
+        claims = decode_clerk_jwt(
+            token,
+            self._issuer,
+            self._public_key,
+            require_audience=self._require_audience,
+            audience=self._resource_url,
+        )
+        if claims is None:
             return None
 
         audience = self._matching_audience(claims.get("aud"))

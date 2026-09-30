@@ -8,13 +8,11 @@ resource the way an MCP access token is. Both token kinds carry the same Clerk u
 `sub`, so ownership rows written through either path line up under one `owner_id` space.
 """
 
-import logging
 from collections.abc import Callable
 
-import jwt
 from fastapi import Header, HTTPException
 
-logger = logging.getLogger(__name__)
+from app.clerk_jwt import decode_clerk_jwt
 
 
 class ClerkSessionVerifier:
@@ -38,18 +36,8 @@ class ClerkSessionVerifier:
         Returns:
             str | None: The Clerk user id from `sub`, or None if the token failed any check.
         """
-        try:
-            claims = jwt.decode(
-                token,
-                self._public_key,
-                algorithms=["RS256"],
-                issuer=self._issuer,
-                options={"require": ["exp", "iss", "sub"], "verify_aud": False},
-            )
-        except jwt.PyJWTError as exc:
-            logger.warning("Session token rejected: %s", exc)
-            return None
-        return claims.get("sub")
+        claims = decode_clerk_jwt(token, self._issuer, self._public_key, require_audience=False)
+        return claims.get("sub") if claims is not None else None
 
 
 def build_require_user_id(verifier: ClerkSessionVerifier) -> Callable[..., str]:

@@ -23,14 +23,11 @@ settings = load_settings()
 engine = build_engine(settings.database_url)
 session_factory = build_session_factory(engine)
 
-mcp_server = build_server(settings, session_factory)
+mcp = build_server(settings, session_factory)
 session_verifier = ClerkSessionVerifier(
     issuer=settings.clerk_issuer, public_key=settings.clerk_public_key
 )
 api_router = build_api_router(session_factory, session_verifier)
-
-# Must run before `session_manager` is touched: it raises RuntimeError otherwise.
-mcp_app = mcp_server.streamable_http_app()
 
 
 @asynccontextmanager
@@ -46,7 +43,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     Yields:
         None: While the session manager is running.
     """
-    async with mcp_server.session_manager.run():
+    async with mcp.lifespan():
         yield
     await engine.dispose()
 
@@ -80,4 +77,4 @@ def health() -> HealthStatus:
     return {"status": "ok", "resource": settings.resource_url}
 
 
-app.mount("/", mcp_app)
+app.mount("/", mcp.asgi_app)

@@ -17,6 +17,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.notebook_view import render_notebook_view, snippet
+from app.notebook_views import (
+    NotebookSummary,
+    NoteFull,
+    NoteHit,
+    parse_id,
+    to_note_full,
+    to_note_hit,
+    to_notebook_summary,
+)
 from app.source_app import resolve_source_app
 from db import repository
 from db.session import session_scope
@@ -29,39 +38,6 @@ class SaveNoteResult(TypedDict):
     note_id: str
     notebook_created: bool
     title: str
-
-
-class NotebookSummary(TypedDict):
-    """One entry in `list_notebooks`'s result."""
-
-    id: str
-    title: str
-    note_count: int
-    created_at: str
-    has_summary: bool
-
-
-class NoteHit(TypedDict):
-    """One entry in `search_notes`'s result."""
-
-    id: str
-    notebook_id: str
-    title: str
-    snippet: str
-    tags: list[str]
-    source_app: str
-    created_at: str
-
-
-class NoteFull(TypedDict):
-    """One entry in `get_notebook_contents`'s result — full content, not a snippet."""
-
-    id: str
-    title: str
-    summary: str
-    tags: list[str]
-    source_app: str
-    created_at: str
 
 
 class SaveSummaryResult(TypedDict):
@@ -109,7 +85,9 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
             ValueError: If `notebook_id` is given but not a valid id, or doesn't exist, or
                 isn't owned by the caller.
         """
-        token = _require_token(get_access_token())
+        token = get_access_token()
+        if token is None:
+            raise ValueError("No access token in context; cannot determine the owner.")
         owner_id = _require_subject(token)
         source_app = resolve_source_app(token.client_id)
 
@@ -199,17 +177,10 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
         owner_id = _require_subject(token)
 
         async with session_scope(session_factory) as session:
-            notebooks = await repository.list_recent_notebooks(session, owner_id, limit)
-            return [
-                {
-                    "id": str(nb.id),
-                    "title": nb.title,
-                    "note_count": await repository.count_notes(session, nb.id),
-                    "created_at": nb.created_at.isoformat(),
-                    "has_summary": nb.summary is not None,
-                }
-                for nb in notebooks
-            ]
+            notebooks_with_counts = await repository.list_recent_notebooks_with_counts(
+                session, owner_id, limit
+            )
+            return [to_notebook_summary(nb, count) for nb, count in notebooks_with_counts]
 
     @server.tool()
     async def search_notes(query: str, limit: int = 20) -> list[NoteHit]:
@@ -227,18 +198,7 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
 
         async with session_scope(session_factory) as session:
             notes = await repository.search_notes(session, owner_id, query, limit)
-            return [
-                {
-                    "id": str(note.id),
-                    "notebook_id": str(note.notebook_id),
-                    "title": note.title,
-                    "snippet": snippet(note.summary, 200),
-                    "tags": note.tags,
-                    "source_app": note.source_app,
-                    "created_at": note.created_at.isoformat(),
-                }
-                for note in notes
-            ]
+            return [to_note_hit(note, snippet(note.summary, 200)) for note in notes]
 
     @server.tool()
     async def get_notebook_contents(notebook_id: str) -> list[NoteFull]:
@@ -266,17 +226,7 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
                 raise ValueError(f"No Notebook found with id {notebook_id!r}.")
 
             notes = await repository.list_notes(session, owner_id, parsed_id)
-            return [
-                {
-                    "id": str(note.id),
-                    "title": note.title,
-                    "summary": note.summary,
-                    "tags": note.tags,
-                    "source_app": note.source_app,
-                    "created_at": note.created_at.isoformat(),
-                }
-                for note in notes
-            ]
+            return [to_note_full(note) for note in notes]
 
     @server.tool()
     async def save_notebook_summary(notebook_id: str, summary: str) -> SaveSummaryResult:
@@ -326,26 +276,6 @@ def register_tools(server: MCPServer, session_factory: async_sessionmaker[AsyncS
             }
 
 
-def _require_token(token: AccessToken | None) -> AccessToken:
-    """Guarantee an access token is present in context.
-
-    The single place that turns a missing token into a checked failure, so callers that
-    need the token itself (not just its subject) can narrow it without repeating this check.
-
-    Args:
-        token (AccessToken | None): The access token returned by `get_access_token()`.
-
-    Returns:
-        AccessToken: The same token, narrowed to non-`None`.
-
-    Raises:
-        ValueError: If there is no token in context.
-    """
-    if token is None:
-        raise ValueError("No access token in context; cannot determine the owner.")
-    return token
-
-
 def _require_subject(token: AccessToken | None) -> str:
     """Extract the Clerk user id from a verified access token.
 
@@ -360,10 +290,11 @@ def _require_subject(token: AccessToken | None) -> str:
             should, so either signals a misconfigured verifier rather than a normal
             runtime condition.
     """
-    subject = _require_token(token).subject
-    if not subject:
+    if token is None:
+        raise ValueError("No access token in context; cannot determine the owner.")
+    if not token.subject:
         raise ValueError("Access token has no subject; cannot determine the owner.")
-    return subject
+    return token.subject
 
 
 def _parse_uuid(value: str, field_name: str) -> uuid.UUID:
@@ -380,6 +311,6 @@ def _parse_uuid(value: str, field_name: str) -> uuid.UUID:
         ValueError: If `value` is not a valid UUID.
     """
     try:
-        return uuid.UUID(value)
+        return parse_id(value)
     except ValueError as exc:
         raise ValueError(f"{field_name!r} is not a valid id: {value!r}") from exc

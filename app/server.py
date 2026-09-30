@@ -1,9 +1,14 @@
 """Builds the MCP server: Clerk auth plus the Notebook/Note tools and prompts."""
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.applications import Starlette
 
 from app.auth import ClerkTokenVerifier
 from app.config import Settings
@@ -11,9 +16,37 @@ from app.prompts import register_prompts
 from app.tools import register_tools
 
 
+@dataclass
+class MountedMCPServer:
+    """The MCP server's ASGI app, already built in the order the SDK requires.
+
+    `MCPServer.streamable_http_app()` must be called before `session_manager` is ever touched
+    — calling them out of order raises `RuntimeError`. `build_server` calls
+    `streamable_http_app()` itself before returning, so this ordering is guaranteed by the time
+    a host app has anything to hold onto; the host only needs to mount `asgi_app` and enter
+    `lifespan()` for the app's lifetime, in either order, whenever it likes.
+    """
+
+    asgi_app: Starlette
+    _server: MCPServer
+
+    @asynccontextmanager
+    async def lifespan(self) -> AsyncGenerator[None]:
+        """Run the MCP session manager for the lifetime of the host app.
+
+        A mounted sub-application's own lifespan never runs, so a host app must enter this
+        itself — otherwise every request to the mounted MCP routes fails with `RuntimeError`.
+
+        Yields:
+            None: While the session manager is running.
+        """
+        async with self._server.session_manager.run():
+            yield
+
+
 def build_server(
     settings: Settings, session_factory: async_sessionmaker[AsyncSession]
-) -> MCPServer:
+) -> MountedMCPServer:
     """Build the MCP server with Clerk auth and the Notebook/Note tools and prompts.
 
     Args:
@@ -21,7 +54,7 @@ def build_server(
         session_factory (async_sessionmaker[AsyncSession]): Used by tools to open sessions.
 
     Returns:
-        MCPServer: A server configured as an OAuth protected resource, not yet mounted.
+        MountedMCPServer: The server's ASGI app, ready to mount, plus its lifespan.
     """
     verifier = ClerkTokenVerifier(
         issuer=settings.clerk_issuer,
@@ -50,4 +83,4 @@ def build_server(
     register_tools(server, session_factory)
     register_prompts(server)
 
-    return server
+    return MountedMCPServer(asgi_app=server.streamable_http_app(), _server=server)

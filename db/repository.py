@@ -8,7 +8,7 @@ hard to skip, rather than something every tool author must remember.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import ColumnElement, func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -70,6 +70,26 @@ async def _owned_notebook(session: AsyncSession, owner_id: str, notebook_id: uui
     return (await session.exec(stmt)).first() is not None
 
 
+def _note_owned_by(owner_id: str) -> ColumnElement[bool]:
+    """Build the ownership condition every Note query composes into its own `where(...)`.
+
+    Named and shaped like a predicate rather than `_owned_notebook`'s existence-check-and-bool,
+    since `get_note`, `list_notes`, and `search_notes` each combine it with their own additional
+    filters (id equality, notebook-id equality, full-text match) rather than checking existence
+    standalone.
+
+    Args:
+        owner_id (str): The Clerk user id to check ownership against.
+
+    Returns:
+        ColumnElement[bool]: A `Note.owner_id == owner_id` clause for use in `where(...)`.
+    """
+    # Same known SQLModel/pyright gap as the order_by calls elsewhere in this module: a
+    # plain field's `==` types as `bool` for pyright, not the `ColumnElement[bool]` it is
+    # at runtime.
+    return Note.owner_id == owner_id  # pyright: ignore[reportReturnType]
+
+
 async def get_note(session: AsyncSession, owner_id: str, note_id: uuid.UUID) -> Note | None:
     """Fetch a Note by id, scoped to its owner.
 
@@ -81,7 +101,7 @@ async def get_note(session: AsyncSession, owner_id: str, note_id: uuid.UUID) -> 
     Returns:
         Note | None: The Note if it exists and is owned by `owner_id`, else None.
     """
-    stmt = select(Note).where(Note.id == note_id, Note.owner_id == owner_id)
+    stmt = select(Note).where(Note.id == note_id, _note_owned_by(owner_id))
     return (await session.exec(stmt)).first()
 
 
@@ -143,7 +163,7 @@ async def list_notes(session: AsyncSession, owner_id: str, notebook_id: uuid.UUI
     """
     stmt = (
         select(Note)
-        .where(Note.notebook_id == notebook_id, Note.owner_id == owner_id)
+        .where(Note.notebook_id == notebook_id, _note_owned_by(owner_id))
         # SQLModel doesn't statically type a class-level field as a SQLAlchemy column
         # expression for pyright, even for plain (non-sa_column) fields; this is a known
         # SQLModel/pyright gap, not a real type error.
@@ -152,8 +172,13 @@ async def list_notes(session: AsyncSession, owner_id: str, notebook_id: uuid.UUI
     return list((await session.exec(stmt)).all())
 
 
-async def list_recent_notebooks(session: AsyncSession, owner_id: str, limit: int) -> list[Notebook]:
-    """List the owner's most recently created Notebooks.
+async def list_recent_notebooks_with_counts(
+    session: AsyncSession, owner_id: str, limit: int
+) -> list[tuple[Notebook, int]]:
+    """List the owner's most recently created Notebooks, each paired with its Note count.
+
+    One query instead of one Notebook query plus one count query per Notebook — the two
+    REST/MCP listing callers used to issue a `count_notes` call per row in a list comprehension.
 
     Args:
         session (AsyncSession): The active database session.
@@ -161,32 +186,21 @@ async def list_recent_notebooks(session: AsyncSession, owner_id: str, limit: int
         limit (int): Maximum number of Notebooks to return.
 
     Returns:
-        list[Notebook]: Notebooks owned by `owner_id`, newest first.
+        list[tuple[Notebook, int]]: Each Notebook owned by `owner_id` paired with how many Notes
+            it has, newest Notebook first. A Notebook with no Notes still appears, with count 0.
     """
     stmt = (
-        select(Notebook)
+        select(Notebook, func.count(Note.id))  # pyright: ignore[reportArgumentType]
+        .outerjoin(Note, Note.notebook_id == Notebook.id)  # pyright: ignore[reportArgumentType]
         .where(Notebook.owner_id == owner_id)
-        # Same known SQLModel/pyright gap as list_notes' order_by above.
+        .group_by(Notebook.id)  # pyright: ignore[reportArgumentType]
         .order_by(
             Notebook.created_at.desc()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
         )
         .limit(limit)
     )
-    return list((await session.exec(stmt)).all())
-
-
-async def count_notes(session: AsyncSession, notebook_id: uuid.UUID) -> int:
-    """Count how many Notes a Notebook has.
-
-    Args:
-        session (AsyncSession): The active database session.
-        notebook_id (uuid.UUID): The Notebook to count Notes for.
-
-    Returns:
-        int: The number of Notes in the Notebook.
-    """
-    stmt = select(func.count()).select_from(Note).where(Note.notebook_id == notebook_id)
-    return (await session.exec(stmt)).one()
+    result = await session.exec(stmt)  # pyright: ignore[reportUnknownVariableType]
+    return [(notebook, count) for notebook, count in result]
 
 
 async def save_notebook_summary(
@@ -278,7 +292,7 @@ async def search_notes(session: AsyncSession, owner_id: str, query: str, limit: 
     document = func.to_tsvector("english", Note.title + " " + Note.summary)
     stmt = (
         select(Note)
-        .where(Note.owner_id == owner_id, document.op("@@")(tsquery))
+        .where(_note_owned_by(owner_id), document.op("@@")(tsquery))
         .order_by(func.ts_rank(document, tsquery).desc())
         .limit(limit)
     )
